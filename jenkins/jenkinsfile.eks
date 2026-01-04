@@ -1,0 +1,122 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = "eu-west-2"
+        TF_DIR     = "eks"
+        CLUSTER_NAME = "shopnow-eks"
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Configure AWS Credentials') {
+            steps {
+                withCredentials([
+                  [$class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: 'aws-jenkins-creds']
+                ]) {
+                    sh '''
+                      aws sts get-caller-identity
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([
+                  [$class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: 'aws-jenkins-creds']
+                ]) {
+                    dir("${TF_DIR}") {
+                        sh '''
+                          terraform init \
+                            -backend-config="bucket=yash-tf-shopnow-statefile" \
+                            -backend-config="key=terraform/terraform.tfstate" \
+                            -backend-config="region=eu-west-2" \
+                            -backend-config="dynamodb_table=yash-shopnow-statelock"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir("${TF_DIR}") {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([
+                  [$class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: 'aws-jenkins-creds']
+                ]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform plan -out=tfplan'
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            input {
+                message "Approve EKS provisioning?"
+                ok "Apply"
+            }
+            steps {
+                withCredentials([
+                  [$class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: 'aws-jenkins-creds']
+                ]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform apply -auto-approve tfplan'
+                    }
+                }
+            }
+        }
+
+        stage('Update kubeconfig (eksctl / awscli)') {
+            steps {
+                withCredentials([
+                  [$class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: 'aws-jenkins-creds']
+                ]) {
+                    sh '''
+                      aws eks update-kubeconfig \
+                        --region ${AWS_REGION} \
+                        --name ${CLUSTER_NAME}
+
+                      kubectl get nodes
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ EKS provisioned successfully via Jenkins credentials"
+        }
+        failure {
+            echo "❌ Pipeline failed"
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
