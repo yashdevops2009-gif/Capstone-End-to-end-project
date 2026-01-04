@@ -100,8 +100,8 @@ pipeline {
                 ]) {
                     sh '''
                       aws eks update-kubeconfig \
-                        --region ${AWS_REGION} \
-                        --name ${CLUSTER_NAME}
+                        --region ${eu-west-2} \
+                        --name ${shopnow-eks}
 
                       kubectl get nodes
                     '''
