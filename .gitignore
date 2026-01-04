@@ -15,3 +15,6 @@
 # VS Code
 .vscode/
 **/.vscode/
+
+eks-tf-code/.terraform/
+eks-tf-code/terraform.tfstate*
