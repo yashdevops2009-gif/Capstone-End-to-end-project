@@ -144,7 +144,7 @@ resource "aws_iam_role_policy_attachment" "yash_ebs_csi" {
 # IAM role and policy for AWS Load Balancer Controller
 
 resource "aws_iam_policy" "aws_load_balancer_controller_policy" {
-  name   = "aws-lbc-yash-01"
+  name   = "aws-lbc-yash-02"
   policy = file("${path.module}/policies/aws_load_balancer_controller_policy.json")
 }
 
