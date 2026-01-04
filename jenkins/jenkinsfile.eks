@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_REGION   = "eu-west-2"
         TF_DIR       = "eks-tf-code"
-        CLUSTER_NAME = "shopnow-eks"
+        CLUSTER_NAME = "yash-capstone-demo-yash-capstone-demo"
     }
 
     options {
